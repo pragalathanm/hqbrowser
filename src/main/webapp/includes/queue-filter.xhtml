@@ -1,0 +1,45 @@
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:p="http://primefaces.org/ui">
+    <h:form id="filterForm">
+        <h:panelGrid columns="1" width="100%">
+            <p:dataTable
+                id="dataTable2"
+                var="queue" 
+                value="#{queueController.queues}" 
+                filteredValue="#{queueController.filteredQueues}"
+                emptyMessage="No queues found with given name" 
+                selectionMode="single"
+                selection="#{queueController.selectedQueue}"
+                rowKey="#{queue.displayName}"
+                rowStyleClass="#{queue.displayName.endsWith('DLQ')? 'dlq' : null}">
+
+                <p:ajax event="rowSelect" listener="#{queueController.onRowSelect}" update=":message,:listForm, :menuForm"/>
+                <p:ajax event="rowUnselect" listener="#{queueController.onRowUnselect}" update=":message,:listForm, :menuForm"/>
+
+                <p:column headerText="Queue Name" filterMatchMode="contains" filterBy="#{queue.displayName}">
+                    <h:outputText value="#{queue.displayName}"/>
+                    <p:graphicImage value="/images/pause.png" height="16" style="float: right;" rendered="#{queue.paused}"/>
+                </p:column>
+
+                <p:column headerText="#" style="width: 30px;">  
+                    <h:outputText value="#{queue.messageCount}" />  
+                </p:column>
+
+                <f:facet name="footer">  
+                    <p:commandButton value="Refresh" 
+                                     id="refreshButton"
+                                     action="#{queueController.refresh()}"
+                                     update=":filterForm, :listForm"/>  
+                </f:facet>
+            </p:dataTable>
+            <p:blockUI block="dataTable2" trigger=":filterForm:dataTable2:refreshButton">  
+                <p:graphicImage value="/images/waiting.gif"/>  
+            </p:blockUI>
+            <p:blockUI block="dataTable2" trigger=":filterForm:dataTable2">  
+                <p:graphicImage value="/images/ajax-loader.gif"/>  
+            </p:blockUI>
+        </h:panelGrid>
+    </h:form>
+</html>

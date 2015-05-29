@@ -1,0 +1,74 @@
+<ui:composition template="template.xhtml"
+                xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:f="http://java.sun.com/jsf/core"
+                xmlns:h="http://java.sun.com/jsf/html"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:c="http://java.sun.com/jsp/jstl/core">
+    <ui:define name="west">
+        <c:set var="sidebarTitle" value="Queues" scope="request"/>
+        <ui:include src="includes/queue-filter.xhtml"/>        
+    </ui:define>
+
+    <ui:define name="center">
+        <h:form id="listForm">
+            <p:dataTable id="dataTable1" 
+                         styleClass="messageTable"
+                         var="message" 
+                         value="#{queueController.messageModel}" 
+                         paginator="true"
+                         lazy="true"
+                         rows="10"
+                         currentPageReportTemplate="(Displaying {startRecord} - {endRecord} of {totalRecords})"
+                         paginatorTemplate="{CurrentPageReport}  {FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+                         rowsPerPageTemplate="5,10,15, 25, 50, 100"
+                         selection="#{queueController.selectedMessages}" 
+                         rowKey="#{message.id}">  
+                <f:facet name="header">  
+                    #{queueController.selectedQueue.displayName}
+                </f:facet>  
+
+                <p:column selectionMode="multiple" style="width:15px;"/>  
+
+                <p:column style="width:10px;">  
+                    <p:rowToggler />  
+                </p:column>
+
+                <p:column headerText="Id" style="width:270px;">  
+                    #{message.id}  
+                </p:column>  
+
+                <p:column headerText="Text">  
+                    <h:outputText value="#{message.text}"/>
+                </p:column>
+                
+                <p:column headerText="Server">  
+                    <h:outputText value="#{message.serverAddress}"/>
+                </p:column>
+
+                <p:column headerText="Timestamp" style="width:140px;">  
+                    <h:outputText value="#{message.timestamp}">
+                        <f:convertDateTime pattern="dd-MMM-yyyy HH:mm:ss" timeZone="GMT+05:30"/>
+                    </h:outputText>
+                </p:column>
+
+                <p:rowExpansion>
+                    <p:inputTextarea value="#{message.longText}" style="width:100%;height: 400px;overflow: auto;" readonly="true"/>
+                </p:rowExpansion>
+                <f:facet name="footer">  
+                    <p:commandButton value="Move Message" action="#{queueController.moveMessage()}" update="dataTable1,:filterForm:dataTable2">
+                    </p:commandButton>
+                    <p:commandButton value="Remove Message" action="#{queueController.removeMessage()}" update="dataTable1,:filterForm:dataTable2">
+                    </p:commandButton>
+                </f:facet>
+            </p:dataTable>
+            <p:blockUI block="dataTable1" trigger="dataTable1">  
+                LOADING<br/>  
+                <p:graphicImage value="/images/ajax-loader.gif"/>  
+            </p:blockUI>
+        </h:form>
+        <p:blockUI block=":listForm:dataTable1" widgetVar="queueBUI">
+            <p:graphicImage value="/images/loading.gif"/>
+        </p:blockUI>
+    </ui:define>
+</ui:composition>

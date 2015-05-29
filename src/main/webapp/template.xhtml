@@ -1,0 +1,109 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:p="http://primefaces.org/ui">
+
+    <f:view contentType="text/html">
+        <h:head>
+            <f:facet name="first">
+                <meta content='text/html; charset=UTF-8' http-equiv="Content-Type"/>
+                <title>HQ Browser</title>
+            </f:facet>
+            <link type="text/css" rel="stylesheet" href="css/main.css"/>
+        </h:head>
+
+        <h:body>
+            <p:growl id="message" showDetail="true" autoUpdate="true"/>
+            <p:layout fullPage="true">
+                <p:layoutUnit position="north" style="border:none;">
+                    <h:form id="menuForm"> 
+                        <p:menubar>
+                            <p:submenu label="Queue" icon="ui-icon-gear">
+                                <p:menuitem value="New" oncomplete="PF('newQueueDialog').show()"/>
+                                <p:separator/>
+                                <p:menuitem value="Pause" update=":pauseQueueDialogForm:pauseQueueDialog, menuForm" oncomplete="PF('pauseQueueDialog').show()" disabled="#{queueController.selectedQueue==null || queueController.selectedQueue.paused == true}}"/>
+                                <p:menuitem value="Resume" update=":resumeQueueDialogForm:resumeQueueDialog, menuForm" oncomplete="PF('resumeQueueDialog').show()" disabled="#{queueController.selectedQueue==null || queueController.selectedQueue.paused == false}"/>
+                                <p:menuitem value="Drain" update=":drainQueueDialogForm:drainQueueDialog,:filterForm:dataTable2, :listForm:dataTable1" oncomplete="PF('drainQueueDialog').show()" disabled="#{queueController.selectedQueue==null}"/>
+                                <p:separator/>
+                                <p:menuitem value="Logout" url="#"/>
+                            </p:submenu>
+
+                            <p:submenu label="Message" icon="ui-icon-pencil">
+                                <p:submenu label="Move To" icon="ui-icon-search">
+                                    <p:menuitem value="DLQ" url="#" icon="ui-icon-arrowreturnthick-1-w"/>
+                                    <p:menuitem value="Main Queue" url="#" icon="ui-icon-arrowreturnthick-1-e"/>
+                                </p:submenu>
+                                <p:menuitem value="Delete" url="#" icon="ui-icon-arrowreturnthick-1-w"/>
+                                <p:menuitem value="Set Priority" url="#" icon="ui-icon-arrowreturnthick-1-w"/>
+                            </p:submenu>
+
+                            <f:facet name="options">
+                                <p:inputText style="margin-right:10px" placeholder="Search"/>
+                                <p:commandButton type="button" value="Logout" icon="ui-icon-extlink" />
+                            </f:facet>
+                        </p:menubar>
+                    </h:form>
+                </p:layoutUnit>
+
+                <p:layoutUnit position="west" size="300" resizable="true" collapsible="true" header="#{sidebarTitle}">
+                    <ui:insert name="west"></ui:insert>
+                </p:layoutUnit>
+
+                <p:layoutUnit position="center" style="border:none;">
+                    <ui:insert name="center"></ui:insert>
+                </p:layoutUnit>
+            </p:layout>
+            <h:form id="pauseQueueDialogForm">
+                <!--*********** BEGIN DRAIN Dialog Box ***********-->
+                <p:confirmDialog message="Do you really want to pause #{queueController.selectedQueue.displayName}?" 
+                                 header="Pause Queue?" severity="alert" widgetVar="pauseQueueDialog" id="pauseQueueDialog">
+                    <p:commandButton id="confirm" value="Yes" update=":filterForm:dataTable2" oncomplete="PF('pauseQueueDialog').hide()" 
+                                     actionListener="#{queueController.pauseQueue()}" /> 
+                    <p:commandButton id="decline" value="No" onclick="PF('pauseQueueDialog').hide()" type="button"/> 
+                </p:confirmDialog>
+                <!--*********** END DRAIN Dialog Box ***********-->
+            </h:form>
+            <h:form id="resumeQueueDialogForm">
+                <!--*********** BEGIN DRAIN Dialog Box ***********-->
+                <p:confirmDialog message="Do you really want to resume #{queueController.selectedQueue.displayName}?" 
+                                 header="Resume Queue?" severity="alert" widgetVar="resumeQueueDialog" id="resumeQueueDialog">
+                    <p:commandButton id="confirm" value="Yes" update=":filterForm:dataTable2" oncomplete="PF('resumeQueueDialog').hide()" 
+                                     actionListener="#{queueController.resumeQueue()}" /> 
+                    <p:commandButton id="decline" value="No" onclick="PF('resumeQueueDialog').hide()" type="button"/> 
+                </p:confirmDialog>
+                <!--*********** END DRAIN Dialog Box ***********-->
+            </h:form>
+            <h:form id="drainQueueDialogForm">
+                <!--*********** BEGIN DRAIN Dialog Box ***********-->
+                <p:confirmDialog message="Do you really want to drain #{queueController.selectedQueue.displayName}?" 
+                                 header="Drain Queue?" severity="alert" widgetVar="drainQueueDialog" id="drainQueueDialog">
+                    <p:commandButton id="confirm" value="Yes" update="" oncomplete="PF('drainQueueDialog').hide()" 
+                                     actionListener="#{queueController.drainQueue()}" /> 
+                    <p:commandButton id="decline" value="No" onclick="PF('drainQueueDialog').hide()" type="button"/> 
+                </p:confirmDialog>
+                <!--*********** END DRAIN Dialog Box ***********-->
+            </h:form>
+
+            <!--*********** BEGIN NEW Dialog Box ***********-->
+            <h:form id="newQueueDialogForm">
+                <p:dialog id="newQueueDialog" header="New Queue" widgetVar="newQueueDialog" modal="true" resizable="false" 
+                          showEffect="clip" hideEffect="fold"> 
+                    <p:ajax event="close" update="newQueuePanel, :filterForm:dataTable2" listener="#{queueController.initDialog()}"/>
+                    <p:outputPanel id="newQueuePanel"> 
+                        <p:message id="msgNewQueue" for="txtNewQueue"/> 
+                        <h:panelGrid columns="2" cellpadding="4">
+                            <h:outputText value="Queue Name: *" /> 
+                            <p:inputText id="txtNewQueue" value="#{queueController.newQueueName}" required="true" requiredMessage="The field queue name is required."/>
+                            <p:commandButton icon="ui-icon-check" value="OK" update="newQueuePanel" oncomplete="if (args &amp;&amp; !args.validationFailed)PF('newQueueDialog').hide()" actionListener="#{queueController.createQueue()}"/>
+                        </h:panelGrid> 
+                    </p:outputPanel>
+                </p:dialog> 
+            </h:form>
+            <!--*********** END NEW Dialog Box ***********-->   
+
+        </h:body>
+    </f:view>
+</html>
+

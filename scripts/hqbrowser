@@ -1,0 +1,211 @@
+#!/bin/bash
+
+PATH=/bin:/usr/bin:/sbin:/usr/sbin
+LOG_FILE="/var/log/hqbrowser/console.log"
+WILDFLY_DIR=/usr/lib/wildfly
+DEPLOY_DIR=$WILDFLY_DIR/standalone/deployments
+
+start_server()
+{
+    is_server_running
+    if [ $? == 0 ]
+    then
+        echo "Server is running already!"
+        return 0
+    fi
+
+    echo "Starting wildfly server..."
+    sudo -u $USER $WILDFLY_DIR/bin/standalone.sh -b 0.0.0.0 >>$LOG_FILE &
+    is_server_running
+    while [ $? -ne 0 ]
+    do
+        echo "Waiting for the server to come up..."
+        sleep 2
+        is_server_running
+    done
+    return 0
+}
+
+stop_server()
+{
+    is_server_running
+    if [ $? != 0 ]
+    then
+        echo "Server has been shutdown already!"
+        return 0
+    fi
+
+    echo "Stopping wildfly server..."
+    sudo -u $USER $WILDFLY_DIR/bin/jboss-cli.sh --connect command=:shutdown
+    retry=0
+    is_server_running
+    while [ $? -eq 0 ] && [ $retry -lt 10 ]
+    do
+        echo "Waiting for the server to be shutdown..."
+        sleep 2
+        $retry=$(( $retry + 1 ))
+        is_server_running
+    done
+    
+    if [ $retry -lt 10 ]
+    then
+        echo "Server has been shutdown gracefully!"
+        return 0
+    else
+        echo "Unable to shutdown the server gracefully"
+        return 1
+    fi
+}
+
+kill_server()
+{
+    echo "Killing wildfly server..."
+    kill -9 `pgrep -f "org.jboss.as.standalone"`
+}
+
+deploy()
+{
+    is_server_running
+    if [ $? != 0 ]
+    then
+        start_server
+        if [ $? != 0 ]
+        then
+            return 1
+        fi
+    fi
+
+    echo "Deploying hqbrowser.war..."
+    cp /usr/share/hqbrowser/lib/hqbrowser-1.0.war $DEPLOY_DIR/hqbrowser.war
+
+    check_file_is_present "$DEPLOY_DIR/hqbrowser.war.deployed" "$DEPLOY_DIR/hqbrowser.war.failed"
+    if [ $? -eq 0 ]
+    then
+        echo "Deployment successful!"
+    else 
+        echo "Deployment failed!"
+    fi
+}
+
+
+undeploy()
+{
+    echo "Undeploying hqbrowser.war..."
+    is_server_running
+    if [ $? -ne 0 ]
+    then
+        echo "Server not running. Not undeploying anything"
+        if [ -f "$DEPLOY_DIR/hqbrowser.war" ]
+        then
+            rm $DEPLOY_DIR/hqbrowser.war
+            echo "Removed war file"
+        fi
+        return 0
+    fi
+
+    if [ -f "$DEPLOY_DIR/hqbrowser.war" ]
+    then
+        rm $DEPLOY_DIR/hqbrowser.war
+        if [ ! -f "$DEPLOY_DIR/hqbrowser.war.failed" ]
+        then
+            file="$DEPLOY_DIR/hqbrowser.war.undeployed"
+            check_file_is_present $file
+            rm "$file"
+        fi
+        echo "Undeployed hqbrowser.war successfully!"
+    else
+        echo "Nothing to undeploy!"
+    fi
+}
+
+check_file_is_present()
+{
+    if [ $# -eq 2 ] 
+    then
+        while [ ! -f "$1" ] &&  [ ! -f "$2" ]
+        do
+            sleep 2
+            echo "Checking status..."
+        done
+        if [ -f "$1" ]
+        then
+            return 0
+        else 
+            return 1
+        fi
+    else
+        while [ ! -f "$1" ]
+        do
+            sleep 2
+            echo "Checking status..."
+        done
+    fi
+}
+
+# 0 - success, 1- failure
+is_server_running()
+{
+    status=`$WILDFLY_DIR/bin/jboss-cli.sh -c --commands="read-attribute server-state" 2>&1`
+    if [ "$status" == "running" ]
+    then
+        return 0
+    fi
+    return 1
+}
+
+# 0 - success, 1- failure
+is_app_deployed()
+{
+    is_server_running
+    if [ $? != 0 ]
+    then
+        return 1
+    fi
+
+    if [ -f "$DEPLOY_DIR/hqbrowser.war.deployed" ]
+    then
+        return 0
+    else
+        return 1
+    fi
+}
+
+main() 
+{
+    if [ ! -z $1 ]; then
+        case "$1" in
+        start)
+            start_server
+        ;;
+        stop)
+            stop_server
+        ;;
+        kill)
+            stop_server
+            if [ $? != 0 ]
+            then
+                kill_server
+            fi
+        ;;
+        deploy)
+            deploy
+        ;;
+        undeploy)
+            undeploy
+        ;;
+        server-status)
+            is_server_running
+        ;;
+        app-status)
+            is_app_deployed
+        ;;
+        *)
+            echo "Wrong command. Use: [start/stop/kill/deploy/undeploy/server-status/app-status]"
+        ;;
+       esac
+    fi
+}
+
+main $1 $2
+
+ 
