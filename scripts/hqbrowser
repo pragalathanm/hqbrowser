@@ -15,7 +15,7 @@ start_server()
     fi
 
     echo "Starting wildfly server..."
-    sudo -u $USER $WILDFLY_DIR/bin/standalone.sh -b 0.0.0.0 >>$LOG_FILE &
+    sudo $WILDFLY_DIR/bin/standalone.sh -b 0.0.0.0 >>$LOG_FILE &
     is_server_running
     while [ $? -ne 0 ]
     do
@@ -36,7 +36,7 @@ stop_server()
     fi
 
     echo "Stopping wildfly server..."
-    sudo -u $USER $WILDFLY_DIR/bin/jboss-cli.sh --connect command=:shutdown
+    sudo $WILDFLY_DIR/bin/jboss-cli.sh --connect command=:shutdown
     retry=0
     is_server_running
     while [ $? -eq 0 ] && [ $retry -lt 10 ]
